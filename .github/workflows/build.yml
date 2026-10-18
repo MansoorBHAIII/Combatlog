@@ -1,0 +1,86 @@
+name: Build CombatLog Plugin
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Generate Maven project
+        run: |
+          mkdir -p src/main/java/com/combatlog
+          mkdir -p src/main/resources
+
+          cat > pom.xml <<'EOF'
+          <project xmlns="http://maven.apache.org/POM/4.0.0"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.combatlog</groupId>
+            <artifactId>CombatLog</artifactId>
+            <version>1.0.0</version>
+            <properties>
+              <maven.compiler.release>21</maven.compiler.release>
+              <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+            </properties>
+            <repositories>
+              <repository>
+                <id>papermc</id>
+                <url>https://repo.papermc.io/repository/maven-public/</url>
+              </repository>
+            </repositories>
+            <dependencies>
+              <dependency>
+                <groupId>io.papermc.paper</groupId>
+                <artifactId>paper-api</artifactId>
+                <version>1.21.11-R0.1-SNAPSHOT</version>
+                <scope>provided</scope>
+              </dependency>
+            </dependencies>
+            <build>
+              <finalName>CombatLog</finalName>
+            </build>
+          </project>
+          EOF
+
+          cat > src/main/resources/plugin.yml <<'EOF'
+          name: CombatLog
+          version: 1.0.0
+          main: com.combatlog.CombatLog
+          api-version: '1.21.11'
+          description: PvP combat timer and combat logging punishment
+          EOF
+
+      - name: Check for plugin source
+        run: |
+          if [ ! -f src/main/java/com/combatlog/CombatLog.java ]; then
+            echo "CombatLog.java is missing from the repository."
+            echo "Add the Java source file before building."
+            exit 1
+          fi
+
+      - name: Build plugin
+        run: mvn --batch-mode clean package
+
+      - name: Upload CombatLog.jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: CombatLog
+          path: target/CombatLog.jar
+          if-no-files-found: error
